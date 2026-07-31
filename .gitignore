@@ -1,0 +1,26 @@
+# Python
+.venv/
+.venvback/
+.venvocr/
+.venvllm
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Environment
+.env
+*.env
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Docker
+*.pid
