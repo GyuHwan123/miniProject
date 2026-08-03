@@ -1,7 +1,8 @@
 const Main = () => {
-    return Main (
-        <>
-        </>
+    return (
+        <main>
+            
+        </main>
     )
 }
 export default Main;
