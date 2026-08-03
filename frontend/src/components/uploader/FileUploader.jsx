@@ -130,12 +130,25 @@ const FileUploader = ({ onClose, onNext }) => {
         <button className="cancel-button" onClick={onClose}>
           취소
         </button>
-        <button
+       {/*  <button
           className="next-button"
           disabled={selectedFiles.length === 0}
           onClick={() => onNext && onNext(selectedFiles)}
         >
           다음
+        </button> */}
+        <button
+            type="button" // 👈 필수! (페이지 리로드 및 Form Submit 방지)
+            className="next-button"
+            disabled={selectedFiles.length === 0}
+            onClick={(e) => {
+                e.preventDefault(); // 👈 혹시 모를 기본 제출 이벤트 차단
+                if (onNext) {
+                onNext(selectedFiles);
+                }
+            }}
+            >
+            다음
         </button>
       </div>
     </div>
