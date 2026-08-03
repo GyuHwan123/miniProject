@@ -1,37 +1,52 @@
 import React, { useState } from 'react';
-// ⭕ 자기 자신이 아닌 ResultViewer와 LlmStructuredViewer를 import 해야 합니다!
+import { useParams } from 'react{/* react-router-dom 사용 시 */}-dom'; // ⭕ React Router Hook 가져오기
 import ResultViewer from '../components/result/ResultViewer';
 import LlmStructuredViewer from '../components/result/LlmStructuredViewer';
 import './Result.scss';
 
 const Result = () => {
-  // OCR 추출 결과 더미 데이터
-  const [ocrText] = useState(
-    '이것은 OCR 기술로 문서에서 1차적으로 추출된 텍스트입니다.\n실제 백엔드 연동 시 추출된 내용이 여기에 들어옵니다.'
-  );
+  // ⭕ URL 경로(e.g., /result/:summaryId)에서 실제 ID를 자동으로 추출!
+  const { summaryId } = useParams(); 
 
+  const [ocrText] = useState('OCR 추출 텍스트...');
   const [llmResult, setLlmResult] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  /* // 현재 조회하려는 summaryId (URL 파라미터나 전달받은 ID 값)테스트용
+  const summaryId = "123"; */
+
   // OCR 다운로드 버튼
   const handleOcrDownload = () => {
-    alert('OCR 텍스트 결과를 다운로드합니다.');
+    // 백엔드 OCR 다운로드 API 호출
+    window.location.href = `http://localhost:8000/download/${summaryId}?type=ocr`;
   };
 
-  // LLM 요약 실행 핸들러
-  const handleSummarize = () => {
+  // ⭕ LLM 요약 실행 핸들러 (진짜 백엔드 통신으로 변경!)
+  const handleSummarize = async () => {
     setIsLoading(true);
-    setTimeout(() => {
-      setLlmResult(
-        '1. 주요 내용 요약\n- OCR 기술과 Ollama LLM을 결합하여 문서를 효율적으로 가공함.\n\n2. 핵심 정보\n- 문서를 분석하고 요약된 텍스트 추출 완료.'
-      );
+    try {
+      // GET /api/summary/{summaryId} 호출
+      const response = await fetch(`http://localhost:8000/api/summary/${summaryId}`);
+      
+      if (!response.ok) {
+        throw new Error('요약 실패');
+      }
+
+      const data = await response.json();
+      // 백엔드에서 받은 llm_result를 상태에 저장
+      setLlmResult(data.llm_result); 
+    } catch (error) {
+      console.error("요약 가져오기 실패:", error);
+      alert("LLM 요약 데이터를 가져오지 못했습니다.");
+    } finally {
       setIsLoading(false);
-    }, 1200);
+    }
   };
 
-  // LLM 다운로드 버튼
+ // LLM 다운로드 버튼
   const handleLlmDownload = () => {
-    alert('LLM 요약 결과를 다운로드합니다.');
+    // 백엔드 LLM 다운로드 API 호출
+    window.location.href = `http://localhost:8000/download/${summaryId}?type=llm`;
   };
 
   return (
