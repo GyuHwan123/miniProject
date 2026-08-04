@@ -13,9 +13,10 @@ const Result = () => {
   const [ocrText] = useState(
     '이것은 OCR 기술로 문서에서 1차적으로 추출된 텍스트입니다.'
   ); // DB없는경우
+
 /* const Result = () => {
   // ⭕ URL 경로(e.g., /result/:summaryId)에서 실제 ID를 자동으로 추출!
-  const { summaryId } = useParams(); 
+  const { summaryId } = useParams();  //DB있는경우
 
   const [ocrText] = useState('OCR 추출 텍스트...'); */ // DB있는경우
   const [llmResult, setLlmResult] = useState('');
@@ -81,6 +82,7 @@ const Result = () => {
     link.click();
     URL.revokeObjectURL(url);
   }; //DB없는경우
+
   /* // OCR 다운로드 버튼
   const handleOcrDownload = () => {
     // 백엔드 OCR 다운로드 API 호출
