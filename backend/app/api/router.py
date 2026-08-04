@@ -1,3 +1,6 @@
+
+from app.schemas.result import SummarizeRequest, SummarizeResponse
+from app.services.result_service import ResultService
 from app.schemas.summary_request import SummaryRequest
 from app.schemas.summary_response import SummaryResponse
 from app.services import summary_service
@@ -31,4 +34,15 @@ def summarize(req: SummaryRequest):
 
     return {
         "summary": summary
+    }
+
+@router.post("/api/summarize", response_model=SummarizeResponse)
+async def request_summarize(payload: SummarizeRequest):
+    # DB 조회 없이 프론트에서 넘어온 payload.text를 가지고 바로 LLM 요약 수행
+    summary_text = await ResultService.generate_llm_summary(payload.text)
+    
+    return {
+        "task_id": payload.task_id,
+        "llm_result": summary_text
+
     }
