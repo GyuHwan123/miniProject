@@ -9,7 +9,8 @@ const FileUploader = ({ onClose, onNext }) => {
   const fileInputRef = useRef(null);
 
   const MAX_FILES = 1;
-  // 기존 코드에서 안내 문구 및 accept 속성과 다르게 설정되어 있던 확장자 목록을 일치시켰습니다.
+  // 20MB 제한 설정 (20 * 1024 * 1024 bytes)
+  const MAX_FILE_SIZE = 20 * 1024 * 1024;
   const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf', 'hwp', 'docs', 'doc'];
 
   const validateAndAddFiles = (newFiles) => {
@@ -18,6 +19,11 @@ const FileUploader = ({ onClose, onNext }) => {
     if (selectedFiles.length + fileList.length > MAX_FILES) {
       alert(`한번에 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
       return;
+    }
+    // 2. 용량 체크 (20MB 미만)
+    const overSizedFiles = fileList.filter((file) => file.size >= MAX_FILE_SIZE);
+    if (overSizedFiles.length > 0) {
+      alert('20MB 미만의 파일만 업로드할 수 있습니다.');
     }
 
     const validFiles = fileList.filter((file) => {
