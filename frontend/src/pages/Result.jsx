@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import ResultViewer from '../components/result/ResultViewer';
 import LlmStructuredViewer from '../components/result/LlmStructuredViewer';
 import './Result.scss';
 
-const Result = () => {
+const Result = ({ ocrText: propsOcrText }) => {
   const { summaryId } = useParams();
+  const location = useLocation();
 
   // 1. OCR 텍스트 상태 (가상의 OCR 출력 완료물)
-  const [ocrText] = useState(
+  /* const [ocrText] = useState(
     `[문서 분석 결과]\n\n1. 발행일자: 2026-08-04\n2. 담당자: 홍길동\n\n[상세 내용]\n- 본 문서는 OCR 개행 테스트용 예시 데이터입니다.\n- 줄바꿈과 목록 형태가 올바르게 표시되는지 확인합니다.\n- 공백과 엔터가 그대로 유지되는지 체크해 보세요.`
-  );
+  ); */
   
+ // 1. props로 온 게 없다면, 이전 페이지에서 navigate로 넘겨준 location.state.ocrText를 사용!
+  const ocrText = propsOcrText || location.state?.ocrText || '';
   const [llmResult, setLlmResult] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -36,7 +39,7 @@ const Result = () => {
     setIsLoading(true);
     try {
       // 👈 기존 백엔드 라우터 주소 (/llm/summary)로 변경
-      const response = await fetch('http://localhost:8001/llm/summary', {
+      const response = await fetch('http://localhost:8000/llm/summary', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,8 +55,8 @@ const Result = () => {
       }
 
       const data = await response.json();
-      // 👈 기존 백엔드 응답 형태 ({ summary: "..." })에 맞춰 data.summary 저장
-      setLlmResult(data.summary); 
+      // 백엔드가 준 응답 데이터 저장 (응답 키값이 summary인지 text인지 확인 필요)
+      setLlmResult(data.summary || data.result || JSON.stringify(data));
     } catch (error) {
       console.error("요약 가져오기 실패:", error);
       alert("LLM 요약 데이터를 가져오지 못했습니다.");

@@ -1,9 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { X, FolderPlus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import './FileUploader.scss';
 
 const FileUploader = ({ onClose, onNext }) => {
+  const navigate = useNavigate();
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -38,6 +40,12 @@ const FileUploader = ({ onClose, onNext }) => {
     setSelectedFiles((prevFiles) => [...prevFiles, ...validFiles]);
   };
 
+  /* const handleOcrSuccess = (extractedOcrText) => {
+    // 8001번이나 8000번에서 받아온 OCR 텍스트를 state로 전달하며 이동!
+    navigate(`/result/${summaryId}`, { 
+      state: { ocrText: extractedOcrText } 
+    });
+  }; */
   const handleButtonClick = () => {
     fileInputRef.current?.click();
   };
@@ -71,9 +79,38 @@ const FileUploader = ({ onClose, onNext }) => {
   };
 
   // OCR 종류를 인자로 받아 상위 컴포넌트(onNext)로 전달
-  const handleOcrSubmit = (ocrType) => {
-    if (onNext) {
-      onNext(selectedFiles, ocrType); // 파일 배열과 함께 선택한 OCR 엔진 이름 전달 ('easy' | 'paddle')
+  const handleOcrSubmit = async (ocrType) => {
+    if (selectedFiles.length === 0) return;
+
+    const formData = new FormData();
+    formData.append('file', selectedFiles[0]); // 선택된 파일
+    formData.append('ocr_type', ocrType);     // 'easy' 또는 'paddle'
+
+    try {
+      // 1. 백엔드(8000번)로 파일 전송 및 OCR 처리 요청
+      const response = await fetch('http://localhost:8000/api/ocr', {
+        method: 'POST',
+        body: formData, // FormData 전송 시 Content-Type 헤더는 자동으로 설정됨
+      });
+
+      if (!response.ok) {
+        throw new Error('OCR 처리 실패');
+      }
+
+      const data = await response.json();
+      
+      // 2. OCR 성공 시 가져온 텍스트를 가지고 Result 페이지로 이동!
+      // (백엔드가 주는 키값에 맞게 data.ocr_text 또는 data.text 등으로 수정)
+      const extractedText = data.ocr_text || data.text || data.summary;
+      const taskId = data.task_id || data.summary_id || 'temp_id';
+
+      navigate(`/result/${taskId}`, {
+        state: { ocrText: extractedText }
+      });
+
+    } catch (error) {
+      console.error("OCR 요청 실패:", error);
+      alert("OCR 실패! 백엔드(8000번) 서버가 켜져있는지 확인해주세요.");
     }
   };
 
