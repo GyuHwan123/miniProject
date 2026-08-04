@@ -1,5 +1,6 @@
 import os
 import io
+import time
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 import easyocr
@@ -130,7 +131,7 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
         # 5. 일반 이미지 파일 (.jpg, .jpeg, .png)
         else:
             result = reader.readtext(file_bytes, detail=0)
-            return " ".join(result)
+            return "\n".join(result)
         
     except Exception as e:
         return f"텍스트 추출 중 오류 발생: {str(e)}"
@@ -138,6 +139,8 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
 @app.post("/upload-ocr/")
 async def upload_and_process_ocr(file: UploadFile = File(...)):
     """파일(이미지/PDF/TXT/DOCX/HWP)을 업로드 받아 텍스트를 추출하는 엔드포인트"""
+    # 실행 전 시간 측정
+    request_start_time = time.perf_counter()
 
     # 0. 파일 용량 사전 검증 (20MB 초과 시 읽기 작업 전에 즉시 차단)
     file_size = getattr(file, "size", None)
@@ -172,13 +175,24 @@ async def upload_and_process_ocr(file: UploadFile = File(...)):
     file_bytes = await file.read()
     
     # 3. 확장자별 처리 및 텍스트 추출
+    parsing_start_time = time.perf_counter()
     parsed_text = process_local_ocr(file_bytes, ext)
+    parsing_end_time = time.perf_counter()
+
+    # 파싱 소요 시간 (초 단위, 소수점 3자리 반올림)
+    parsing_duration = round(parsing_end_time - parsing_start_time, 3)
     
-    # 4. 결과 반환
+    # 4. 전체 요청 처리 소요 시간 측정
+    request_end_time = time.perf_counter()
+    total_duration = round(request_end_time - request_start_time, 3)
+    
+    # 5. 결과 반환
     return {
         "filename": file.filename,
         "extracted_text": parsed_text,
-        "model_used": "EasyOCR + Native Document Parsers"
+        "model_used": "EasyOCR + Native Document Parsers",
+        "parsing_time_seconds": parsing_duration,
+        "total_api_time_seconds": total_duration
     }
 
 if __name__ == "__main__":

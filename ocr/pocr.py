@@ -1,5 +1,6 @@
 import os
 import io
+import time
 import tempfile
 import win32com.client
 from fastapi import FastAPI, UploadFile, File, status
@@ -138,7 +139,10 @@ def process_local_ocr(file_bytes: bytes, ext: str) -> str:
 @app.post("/upload-ocr/")
 async def upload_and_process_ocr(file: UploadFile = File(...)):
     """파일(이미지/PDF/TXT/DOCX/HWP) 업로드 및 텍스트 추출 라우터"""
-    
+
+    # 전체 요청 시작 시간 측정
+    request_start_time = time.perf_counter()
+
     # 0. 파일 용량 사전 검증 (20MB)
     file_size = getattr(file, "size", None)
     if file_size is None:
@@ -170,13 +174,23 @@ async def upload_and_process_ocr(file: UploadFile = File(...)):
     file_bytes = await file.read()
     
     # 3. 텍스트 추출 실행
+    parsing_start_time = time.perf_counter()
     parsed_text = process_local_ocr(file_bytes, ext)
+    parsing_end_time = time.perf_counter()
+
+    parsing_duration = round(parsing_end_time - parsing_start_time, 3)
+
+    # 4. 전체 요청 처리 소요 시간 측정
+    request_end_time = time.perf_counter()
+    total_duration = round(request_end_time - request_start_time, 3)
     
-    # 4. 결과 반환
+    # 5. 결과 반환
     return {
         "filename": file.filename,
         "extracted_text": parsed_text,
-        "model_used": "PaddleOCR + Native Document Parsers"
+        "model_used": "PaddleOCR + Native Document Parsers",
+        "parsing_time_seconds": parsing_duration,
+        "total_api_time_seconds": total_duration
     }
 
 if __name__ == "__main__":
