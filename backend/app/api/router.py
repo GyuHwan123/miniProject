@@ -46,3 +46,21 @@ async def request_summarize(payload: SummarizeRequest):
         "llm_result": summary_text
 
     }
+
+@router.post("/api/ocr/upload")
+async def upload(file: UploadFile = File(...)):
+
+    files = {
+        "file": (
+            file.filename,
+            await file.read(),
+            file.content_type,
+        )
+    }
+
+    response = requests.post(
+        "http://localhost:8001/api/ocr/upload",
+        files=files,
+    )
+
+    return response.json()
