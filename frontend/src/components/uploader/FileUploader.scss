@@ -160,42 +160,69 @@ $text-muted: #6b7280;
     }
   }
 
-  .modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+  .modal-footer-container {
+    margin-top: 16px;
 
-    button {
-      padding: 8px 20px;
-      border-radius: 6px;
+    .ocr-select-title {
       font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
+      font-weight: 600;
+      color: $text-dark;
+      margin-bottom: 12px;
+      text-align: right; /* 오른쪽 정렬 (필요시 left나 center로 변경) */
     }
 
-    .cancel-button {
-      background-color: #ffffff;
-      border: 1px solid #e5e7eb;
-      color: #374151;
+    .modal-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
-      &:hover {
-        background-color: #f3f4f6;
-      }
-    }
-
-    .next-button {
-      background-color: $primary-color;
-      border: none;
-      color: #ffffff;
-
-      &:hover:not(:disabled) {
-        background-color: $primary-hover;
+      button {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
       }
 
-      &:disabled {
-        background-color: #93c5fd;
-        cursor: not-allowed;
+      .cancel-button {
+        background-color: #ffffff;
+        border: 1px solid #e5e7eb;
+        color: #374151;
+
+        &:hover {
+          background-color: #f3f4f6;
+        }
+      }
+
+      /* OCR 버튼 2개를 우측에 나란히 배치하는 그룹 */
+      .ocr-button-group {
+        display: flex;
+        gap: 8px;
+
+        .next-button {
+          background-color: $primary-color;
+          border: none;
+          color: #ffffff;
+
+          &:hover:not(:disabled) {
+            background-color: $primary-hover;
+          }
+
+          &:disabled {
+            background-color: #93c5fd;
+            cursor: not-allowed;
+          }
+
+          /* PaddleOCR 버튼 색상을 다르게 주고 싶다면 주석 해제하여 사용 가능
+          &.paddle-ocr {
+            background-color: #059669;
+            &:hover:not(:disabled) {
+              background-color: #047857;
+            }
+          }
+          */
+        }
       }
     }
   }

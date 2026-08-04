@@ -8,14 +8,15 @@ const FileUploader = ({ onClose, onNext }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  const MAX_FILES = 5;
-  const ALLOWED_EXTENSIONS = ['jpg', 'png', 'svg', 'zip'];
+  const MAX_FILES = 1;
+  // 기존 코드에서 안내 문구 및 accept 속성과 다르게 설정되어 있던 확장자 목록을 일치시켰습니다.
+  const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf', 'hwp', 'docs', 'doc'];
 
   const validateAndAddFiles = (newFiles) => {
     const fileList = Array.from(newFiles);
 
     if (selectedFiles.length + fileList.length > MAX_FILES) {
-      alert(`최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
+      alert(`한번에 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
       return;
     }
 
@@ -25,7 +26,7 @@ const FileUploader = ({ onClose, onNext }) => {
     });
 
     if (validFiles.length !== fileList.length) {
-      alert('.jpg, .png, .svg, .zip 형식의 파일만 업로드 가능합니다.');
+      alert('.jpg, .png, .pdf, .hwp, .docs 형식의 파일만 업로드 가능합니다.');
     }
 
     setSelectedFiles((prevFiles) => [...prevFiles, ...validFiles]);
@@ -63,6 +64,13 @@ const FileUploader = ({ onClose, onNext }) => {
     setSelectedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
+  // OCR 종류를 인자로 받아 상위 컴포넌트(onNext)로 전달
+  const handleOcrSubmit = (ocrType) => {
+    if (onNext) {
+      onNext(selectedFiles, ocrType); // 파일 배열과 함께 선택한 OCR 엔진 이름 전달 ('easy' | 'paddle')
+    }
+  };
+
   return (
     <div className="modal-card">
       {/* 모달 헤더 */}
@@ -70,7 +78,7 @@ const FileUploader = ({ onClose, onNext }) => {
         <div>
           <h2 className="modal-title">미디어 업로드</h2>
           <p className="modal-subtitle">
-            여기에 문서를 추가하세요. 최대 {MAX_FILES}개까지 업로드할 수 있습니다.
+            여기에 문서를 추가하세요. 한번에 {MAX_FILES}개까지 업로드할 수 있습니다.
           </p>
         </div>
         <button className="close-button" onClick={onClose} aria-label="닫기">
@@ -100,13 +108,13 @@ const FileUploader = ({ onClose, onNext }) => {
           ref={fileInputRef}
           onChange={handleFileChange}
           multiple
-          accept=".jpg,.jpeg,.png,.svg,.zip"
+          accept=".jpg,.jpeg,.png,.pdf,.hwp,.docs,.doc"
           className="hidden-file-input"
         />
       </div>
 
       {/* 안내 문구 */}
-      <p className="support-text">.jpg, .png, .svg 및 .zip 파일만 지원합니다.</p>
+      <p className="support-text">.jpg, .png, .pdf, .hwp, .docs 파일만 지원합니다.</p>
 
       {/* 선택된 파일 목록 */}
       {selectedFiles.length > 0 && (
@@ -125,33 +133,42 @@ const FileUploader = ({ onClose, onNext }) => {
         </ul>
       )}
 
-      {/* 푸터 액션 버튼 */}
-      <div className="modal-footer">
-        <button className="cancel-button" onClick={onClose}>
-          취소
-        </button>
-       {/*  <button
-          className="next-button"
-          disabled={selectedFiles.length === 0}
-          onClick={() => onNext && onNext(selectedFiles)}
-        >
-          다음
-        </button> */}
-        <button
-            type="button" // 👈 필수! (페이지 리로드 및 Form Submit 방지)
-            className="next-button"
-            disabled={selectedFiles.length === 0}
-            onClick={(e) => {
-                e.preventDefault(); // 👈 혹시 모를 기본 제출 이벤트 차단
-                if (onNext) {
-                onNext(selectedFiles);
-                }
-            }}
+      {/* 푸터 영역: OCR 선택 가이드 및 action 버튼 */}
+      <div className="modal-footer-container">
+        <p className="ocr-select-title">사용하실 OCR을 선택해주세요</p>
+        <div className="modal-footer">
+          <button type="button" className="cancel-button" onClick={onClose}>
+            취소
+          </button>
+          
+          <div className="ocr-button-group">
+            <button
+              type="button"
+              className="next-button easy-ocr"
+              disabled={selectedFiles.length === 0}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOcrSubmit('easy');
+              }}
             >
-            다음
-        </button>
+              EasyOCR 실행
+            </button>
+            <button
+              type="button"
+              className="next-button paddle-ocr"
+              disabled={selectedFiles.length === 0}
+              onClick={(e) => {
+                e.preventDefault();
+                handleOcrSubmit('paddle');
+              }}
+            >
+              PaddleOCR 실행
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
+
 export default FileUploader;
