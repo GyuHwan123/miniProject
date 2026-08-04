@@ -12,6 +12,10 @@
   min-height: 100vh;
   background-color: #e8f2ff;
 
+  Header{
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  }
+
   .app-content {
     flex: 1;
     display: flex;
