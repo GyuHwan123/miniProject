@@ -10,6 +10,7 @@ import tempfile
 import tkinter as tk
 
 app = FastAPI()
+MAX_FILE_SIZE = 20 * 1024 * 1024
 
 print("OCR 모델 로딩 중... 잠시만 기다려주세요.")
 # EasyOCR 모델을 메모리에 로드 (한국어, 영어 지원)
@@ -137,6 +138,26 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
 @app.post("/upload-ocr/")
 async def upload_and_process_ocr(file: UploadFile = File(...)):
     """파일(이미지/PDF/TXT/DOCX/HWP)을 업로드 받아 텍스트를 추출하는 엔드포인트"""
+
+    # 0. 파일 용량 사전 검증 (20MB 초과 시 읽기 작업 전에 즉시 차단)
+    file_size = getattr(file, "size", None)
+
+    # size 속성을 직접 가져올 수 없는 경우 포인터 이동으로 측정
+    if file_size is None:
+        file.file.seek(0, 2)  # 파일 맨 끝으로 이동
+        file_size = file.file.tell()  # 용량 측정
+        file.file.seek(0)  # 커서를 다시 맨 앞으로 복구 (필수!)
+
+    if file_size > MAX_FILE_SIZE:
+        max_mb = MAX_FILE_SIZE / (1024 * 1024)
+        current_mb = file_size / (1024 * 1024)
+        return JSONResponse(
+            status_code=413,
+            content={
+                "message": f"파일 크기가 제한({max_mb:.0f}MB)을 초과했습니다.",
+                "current_size": f"{current_mb:.2f}MB"
+            }
+        )
     
     # 1. 파일 확장자 검증 (pdf, txt 포함)
     allowed_extensions = ["jpg", "jpeg", "png", "pdf", "txt", "docx", "hwp"]
