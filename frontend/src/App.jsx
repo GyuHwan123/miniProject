@@ -27,7 +27,7 @@ function App() {
       formData.append('file', files[0]);
       formData.append('ocr_type', ocrType);
 
-      const response = await fetch('http://localhost:8000/api/ocr', {
+      const response = await fetch('http://localhost:8000/api/ocr/test', {
         method: 'POST',
         body: formData,
       });
@@ -36,9 +36,10 @@ function App() {
 
       const data = await response.json();
       // 백엔드가 반환한 OCR 텍스트를 App의 ocrText 상태에 저장!
-      setOcrText(data.ocr_text || data.text);
+      /* setOcrText(data.ocr_text || data.text); */
+      setOcrText(data.ocr_text);
 
-    } catch (error) {
+    } /* catch (error) {
       console.error("OCR 요청 실패, 테스트용 더미 데이터를 채웁니다:", error);
       
       // 💡 백엔드가 아직 준비 안 되었거나 에러 날 때 비상용 더미 데이터 세팅!
@@ -49,6 +50,13 @@ function App() {
       setIsLoading(false);
       // 2️⃣ 화면 단계를 'result'로 변경하여 Result 페이지를 보여줍니다.
       setStep('result');
+    } */
+    catch (error) {
+      console.error("OCR 요청 실패:", error);
+      alert("백엔드 /api/ocr/test 통신 에러!");
+    } finally {
+      setIsLoading(false);
+      setStep('result'); // Result 화면으로 이동
     }
   };
 

@@ -39,7 +39,14 @@ class OllamaService:
             ]
         )
 
-        return response["message"]["content"]
+        # 💡 [핵심 수정 위치] 
+        # 대괄호 ['message']['content'] 대신 점(.) 속성 접근 방식을 사용합니다.
+        try:
+            # Pydantic 객체 속성 접근
+            return response.message.content
+        except AttributeError:
+            # 만약 구버전 딕셔너리로 들어올 경우 예외 처리
+            return response['message']['content']
 
 
 ollama_service = OllamaService()

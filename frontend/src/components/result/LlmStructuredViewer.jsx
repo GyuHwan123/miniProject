@@ -10,6 +10,14 @@ const LlmStructuredViewer = ({ llmResult, onSummarize, onDownload, isLoading }) 
       onSummarize();
     }
   };
+  const renderSummaryText = (result) => {
+    if (!result) return null;
+    if (typeof result === 'string') return result;
+    if (typeof result === 'object') {
+      return result.llm_result || result.summary || result.result || JSON.stringify(result, null, 2);
+    }
+    return String(result);
+  };
 
   return (
     <div className="llm-structured-viewer">
@@ -33,7 +41,10 @@ const LlmStructuredViewer = ({ llmResult, onSummarize, onDownload, isLoading }) 
           {isLoading ? (
             <div className="loading-state">LLM이 문서를 요약하고 있습니다...</div>
           ) : llmResult ? (
-            <div className="result-content">{llmResult}</div>
+            /* 🚨 34번째 줄 수정: {llmResult} 대신 renderSummaryText(llmResult) 사용 */
+            <div className="result-content" style={{ whiteSpace: 'pre-wrap' }}>
+              {renderSummaryText(llmResult)}
+            </div>
           ) : (
             <div className="placeholder-text">요약 결과가 존재하지 않습니다.</div>
           )}

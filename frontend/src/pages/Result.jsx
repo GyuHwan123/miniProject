@@ -39,7 +39,7 @@ const Result = ({ ocrText: propsOcrText }) => {
     setIsLoading(true);
     try {
       // 👈 기존 백엔드 라우터 주소 (/llm/summary)로 변경
-      const response = await fetch('http://localhost:8000/llm/summary', {
+      const response = await fetch('http://localhost:8000/api/summarize', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,7 +56,9 @@ const Result = ({ ocrText: propsOcrText }) => {
 
       const data = await response.json();
       // 백엔드가 준 응답 데이터 저장 (응답 키값이 summary인지 text인지 확인 필요)
-      setLlmResult(data.summary || data.result || JSON.stringify(data));
+      /* setLlmResult(data.summary || data.result || JSON.stringify(data)); */
+      // 백엔드가 llm_result 나 summary 중 어떤 걸 주더라도 받아먹도록 설정!
+      setLlmResult(data.llm_result || data.summary || data.result);
     } catch (error) {
       console.error("요약 가져오기 실패:", error);
       alert("LLM 요약 데이터를 가져오지 못했습니다.");

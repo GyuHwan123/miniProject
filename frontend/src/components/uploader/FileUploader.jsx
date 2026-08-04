@@ -79,7 +79,7 @@ const FileUploader = ({ onClose, onNext }) => {
   };
 
   // OCR 종류를 인자로 받아 상위 컴포넌트(onNext)로 전달
-  const handleOcrSubmit = async (ocrType) => {
+  /* const handleOcrSubmit = async (ocrType) => {
     if (selectedFiles.length === 0) return;
 
     const formData = new FormData();
@@ -88,7 +88,7 @@ const FileUploader = ({ onClose, onNext }) => {
 
     try {
       // 1. 백엔드(8000번)로 파일 전송 및 OCR 처리 요청
-      const response = await fetch('http://localhost:8000/api/ocr', {
+      const response = await fetch('http://localhost:8000/api/ocr/test', {
         method: 'POST',
         body: formData, // FormData 전송 시 Content-Type 헤더는 자동으로 설정됨
       });
@@ -111,6 +111,16 @@ const FileUploader = ({ onClose, onNext }) => {
     } catch (error) {
       console.error("OCR 요청 실패:", error);
       alert("OCR 실패! 백엔드(8000번) 서버가 켜져있는지 확인해주세요.");
+    }
+  }; */
+
+  // OCR 종류를 인자로 받아 상위 컴포넌트(App.jsx의 onNext)로 전달
+  const handleOcrSubmit = (ocrType) => {
+    if (selectedFiles.length === 0) return;
+
+    // 💡 직접 fetch하지 않고 App.jsx의 handleNext(files, ocrType)를 실행시킵니다!
+    if (onNext) {
+      onNext(selectedFiles, ocrType);
     }
   };
 
