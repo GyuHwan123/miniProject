@@ -6,13 +6,14 @@ import LlmStructuredViewer from '../components/result/LlmStructuredViewer';
 import './Result.scss';
 
 
-const Result = () => {
+const Result = ({ocrText}) => {
   const { summaryId } = useParams(); // 작업 단위 구분용 ID (옵션)
 
+  
   // 1. OCR 텍스트 상태 (실제로는 이전 페이지에서 넘겨받거나 props로 받아온 텍스트)
-  const [ocrText] = useState(
-    '이것은 OCR 기술로 문서에서 1차적으로 추출된 텍스트입니다.'
-  ); // DB없는경우
+  // const [ocrText] = useState(
+  //   '이것은 OCR 기술로 문서에서 1차적으로 추출된 텍스트입니다.'
+  // ); // DB없는경우
 /* const Result = () => {
   // ⭕ URL 경로(e.g., /result/:summaryId)에서 실제 ID를 자동으로 추출!
   const { summaryId } = useParams(); 

@@ -1,11 +1,9 @@
 import requests
 from fastapi import UploadFile
 
-
 OCR_SERVER = "http://127.0.0.1:8002"
 
-
-async def upload_ocr(file: UploadFile):
+async def upload_ocr(file: UploadFile, model: str = "easy"):
 
     files = {
         "file": (
@@ -17,7 +15,10 @@ async def upload_ocr(file: UploadFile):
 
     response = requests.post(
         f"{OCR_SERVER}/api/ocr/upload",
-        files=files
+        files=files,
+        data={
+            "model": model
+        }
     )
 
     response.raise_for_status()

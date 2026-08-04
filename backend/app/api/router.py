@@ -1,10 +1,13 @@
+from urllib import response
 
 from app.schemas.result import SummarizeRequest, SummarizeResponse
 from app.services.result_service import ResultService
 from app.schemas.summary_request import SummaryRequest
 from app.schemas.summary_response import SummaryResponse
 from app.services import summary_service
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, UploadFile, File
+
+import requests
 
 router = APIRouter()
 
@@ -59,8 +62,17 @@ async def upload(file: UploadFile = File(...)):
     }
 
     response = requests.post(
-        "http://localhost:8001/api/ocr/upload",
+        "http://localhost:8002/api/ocr/upload",
         files=files,
     )
+
+    print("status =", response.status_code)
+    print("text =", response.text)
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.text
+        )
 
     return response.json()

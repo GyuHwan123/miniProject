@@ -3,7 +3,7 @@ import io
 import time
 import tempfile
 import win32com.client
-from fastapi import FastAPI, UploadFile, File, status
+from fastapi import UploadFile
 from fastapi.responses import JSONResponse
 from pdf2image import convert_from_bytes
 from PIL import Image
@@ -11,7 +11,6 @@ import numpy as np
 from paddleocr import PaddleOCR
 import fitz
 
-app = FastAPI()
 
 # -------------------------------------------------------------
 # PaddleOCR 전역 객체 초기화 (서버 시작 시 1회 로드)
@@ -136,8 +135,7 @@ def process_local_ocr(file_bytes: bytes, ext: str) -> str:
     return "지원하지 않는 형식을 우회함"
 
 
-@app.post("/upload-ocr/")
-async def upload_and_process_ocr(file: UploadFile = File(...)):
+async def process_paddleocr(file: UploadFile):
     """파일(이미지/PDF/TXT/DOCX/HWP) 업로드 및 텍스트 추출 라우터"""
 
     # 전체 요청 시작 시간 측정
@@ -187,12 +185,9 @@ async def upload_and_process_ocr(file: UploadFile = File(...)):
     # 5. 결과 반환
     return {
         "filename": file.filename,
-        "extracted_text": parsed_text,
+        "ocr_text": parsed_text,
         "model_used": "PaddleOCR + Native Document Parsers",
         "parsing_time_seconds": parsing_duration,
         "total_api_time_seconds": total_duration
     }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("pocr:app", host="127.0.0.1", port=8000, reload=True)
