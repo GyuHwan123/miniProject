@@ -10,10 +10,6 @@ import './App.scss';
 function App() {
   // 현재 화면 단계를 관리하는 상태 ('upload' 또는 'result')
   const [step, setStep] = useState('upload');
-  const [ocrText, setOcrText] = useState(""); // OCR 결과 텍스트 상태
-
-
-  // 💡 OCR 결과를 담아둘 중앙 상태
   const [ocrText, setOcrText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,7 +27,7 @@ function App() {
       formData.append('file', files[0]);
       formData.append('ocr_type', ocrType);
 
-      const response = await fetch('http://localhost:8000/api/ocr/test', {
+      const response = await fetch('http://localhost:8000/api/ocr/upload', {
         method: 'POST',
         body: formData,
       });
