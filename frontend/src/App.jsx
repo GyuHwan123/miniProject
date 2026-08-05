@@ -12,7 +12,7 @@ function App() {
   // 현재 화면 단계를 관리하는 상태 ('upload' 또는 'result')
   const [step, setStep] = useState('upload');
   const [ocrText, setOcrText] = useState('');
-  const [summaryResult, setSummaryResult] = useState(''); //이거 테스트용임
+  /* const [summaryResult, setSummaryResult] = useState(''); //이거 테스트용임 */
   const [isLoading, setIsLoading] = useState(false);
   const [isLlmLoading, setIsLlmLoading] = useState(false);
 

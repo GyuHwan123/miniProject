@@ -64,32 +64,30 @@ def summarize(req: SummaryRequest):
         "summary": summary
     }
 
-@router.post("/api/summarize", response_model=SummarizeResponse)
-async def request_summarize(payload: SummarizeRequest):
-    # DB 조회 없이 프론트에서 넘어온 payload.text를 가지고 바로 LLM 요약 수행
-    summary_text = await ResultService.generate_llm_summary(payload.text)
-    
-    return {
-        "task_id": payload.task_id,
-        "llm_result": summary_text
-
-    }
-
 @router.post("/api/ocr/upload")
-async def upload(file: UploadFile = File(...)):
+async def upload(file: UploadFile = File(...),ocr_type: str = Form(...)):
 
-    files = {
-        "file": (
-            file.filename,
-            await file.read(),
-            file.content_type,
+    try:
+        files = {
+            "file": (
+                file.filename,
+                await file.read(),
+                file.content_type,
+            )
+        }
+    
+        response = requests.post(
+            "http://localhost:8002/api/ocr/upload",
+            files=files,
+            data={"ocr_type": ocr_type},
+            timeout=60
         )
-    }
-
-    response = requests.post(
-        "http://localhost:8002/api/ocr/upload",
-        files=files,
-    )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR 서버 연결 실패: {str(e)}"
+        )
+    
 
     print("status =", response.status_code)
     print("text =", response.text)
