@@ -28,7 +28,7 @@ def get_ocr_engine(model_type: str):
     if model_type == "easyocr":
         _current_model_instance = easyocr.Reader(['ko', 'en'], gpu=True)
     elif model_type == "paddleocr":
-        _current_model_instance = PaddleOCR(use_angle_cls=True, lang='korean', use_gpu=True)
+        _current_model_instance = PaddleOCR(use_angle_cls=True, lang='korean', use_gpu=False)
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
 

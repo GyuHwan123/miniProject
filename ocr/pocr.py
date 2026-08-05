@@ -25,36 +25,28 @@ ocr_engine = get_ocr_engine("paddleocr")
 
 def parse_image_with_paddle(file_bytes: bytes) -> str:
     """PaddleOCR을 이용한 이미지 텍스트 추출 함수"""
+        # 1. 이미지 처리
+    image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+    img_np = np.array(image)
+        
+    # 2. PaddleOCR 수행
+    result = ocr_engine.ocr(img_np, cls=True)
 
-    result = ocr_engine.ocr(file_bytes, cls=True)
-
-    texts = []
+    extracted_lines = []
     confidences = []
-
-    if result:
-        # PaddleOCR의 리스트 중첩(Depth) 변동 완벽 방어
-        lines = result[0] if (isinstance(result, list) and len(result) > 0 and result[0] is not None) else []
-
-        for line in lines:
-            if not line or len(line) < 2:
-                continue
+        
+    # 3. PaddleOCR 자체 반환 순서(result[0])를 강제 정렬 없이 그대로 사용
+    if result and result[0]:
+        for line in result[0]:
+            text = line[1][0]    # 텍스트
+            score = line[1][1]   # 신뢰도
+            extracted_lines.append(text)
+            confidences.append(score)
             
-            text_info = line[1] # ("텍스트", 점수)
-            if isinstance(text_info, (tuple, list)) and len(text_info) >= 2:
-                text = text_info[0]
-                score = float(text_info[1])
-                
-                # 유효 점수만 수집
-                texts.append(text)
-                confidences.append(score)
-
-    # 2. 정확한 산술 평균 계산
-    if confidences:
-        avg_confidence = sum(confidences) / len(confidences)
-    else:
-        avg_confidence = 0.0
-
-    return "\n".join(texts), round(avg_confidence, 4)
+    avg_confidence = (sum(confidences) / len(confidences)) if confidences else 0.0
+    
+    # \n으로 결합한 전체 텍스트와 평균 신뢰도 반환
+    return "\n".join(extracted_lines), round(avg_confidence, 4)
     
 
 def parse_pdf_with_paddle(file_bytes: bytes) -> str:
@@ -166,7 +158,6 @@ def parse_hwp(file_bytes: bytes) -> str:
 
 def process_local_ocr(file_bytes: bytes, ext: str) -> tuple[str, float]:
     """확장자별 문서 파싱 분기"""
-    ocr_engine = get_ocr_engine("paddleocr")
     try:
         if ext in ["jpg", "jpeg", "png"]:
             return parse_image_with_paddle(file_bytes)
@@ -261,4 +252,6 @@ async def process_paddleocr(file: UploadFile, gt_text: Optional[str] = None):
         "parsing_time_seconds": parsing_duration,
         "total_api_time_seconds": total_duration
     }
+
+
 

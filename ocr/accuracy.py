@@ -61,7 +61,6 @@ async def parse_gt_file(gt_file: Optional[UploadFile]) -> Optional[str]:
             return None
             
     return None
-
 def normalize_text(text: str) -> str:
     """
     OCR 출력물의 줄바꿈(\n)과 공백, 그리고 JSON 조각들의 공백 차이를 
@@ -84,10 +83,18 @@ def calculate_cer_accuracy(gt_text: str, pred_text: str) -> dict:
     distance = Levenshtein.distance(gt_clean, pred_clean)
     gt_length = len(gt_clean)
     
-    # CER(Character Error Rate) 및 정확도 계산
     cer = distance / gt_length
     accuracy = max(0.0, 1.0 - cer)
-    
+
+    from collections import Counter
+    gt_counter = Counter(gt_clean)
+    pred_counter = Counter(pred_clean)
+    overlap = sum((gt_counter & pred_counter).values())
+    char_match_acc = overlap / gt_length if gt_length > 0 else 0.0
+    print(f"\n[EVAL DEBUG]")
+    print(f"GT 글자 수: {gt_length} | PRED 글자 수: {len(pred_clean)} (차이: {gt_length - len(pred_clean)}자)")
+    print(f"Accuracy (순서포함): {accuracy * 100:.2f}%")
+    print(f"Char Match Accuracy (순서무관 글자포함률): {char_match_acc * 100:.2f}%\n")
     return {
         "score": round(accuracy, 4),
         "accuracy_percentage": f"{round(accuracy * 100, 2)}%",
