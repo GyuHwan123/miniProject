@@ -1,31 +1,47 @@
 import os
 import io
+from typing import Optional
 import time
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-import easyocr
 from pdf2image import convert_from_bytes
 from docx import Document
 import win32com.client
 import tempfile
-import tkinter as tk
-
+import gc
+import torch
+from PIL import Image
+import numpy as np
 
 MAX_FILE_SIZE = 20 * 1024 * 1024
 
-print("OCR 모델 로딩 중... 잠시만 기다려주세요.")
-# EasyOCR 모델을 메모리에 로드 (한국어, 영어 지원)
-reader = easyocr.Reader(['ko', 'en'], gpu=False) 
-print("OCR 모델 로딩 완료!")
+from quality import calculate_text_quality_score
+from accuracy import calculate_cer_accuracy
+from model_manager import get_ocr_engine
+
+def parse_txt(file_bytes: bytes) -> tuple[str, float]:
+    """TXT 바이너리에서 인코딩 자동 감지 후 텍스트 및 정확도 추출"""
+    extracted_text = ""
+    # 1. UTF-8 시도
+    try:
+        extracted_text = file_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        # 2. CP949 (한글 Windows 기본) 시도
+        try:
+            extracted_text = file_bytes.decode('cp949')
+        except UnicodeDecodeError:
+            extracted_text = file_bytes.decode('utf-8', errors='ignore')
+
+    score = calculate_text_quality_score(extracted_text)
+    return extracted_text.strip(), score
 
 def parse_docx(file_bytes: bytes) -> str:
     """DOCX 바이너리 데이터에서 텍스트를 추출합니다."""
     doc = Document(io.BytesIO(file_bytes))
-    full_text = []
-    for para in doc.paragraphs:
-        if para.text.strip():  # 빈 줄 제외
-            full_text.append(para.text)
-    return "\n".join(full_text)
+    full_text = [para.text for para in doc.paragraphs if para.text.strip()]
+    extracted_text = "\n".join(full_text)
+    score = calculate_text_quality_score(extracted_text)
+    return extracted_text, score
 
 def parse_hwp(file_bytes: bytes) -> str:
     """HWP 문서를 TXT 파일로 바로 덤프하여 매개변수 및 클립보드 오류 해결"""
@@ -73,12 +89,14 @@ def parse_hwp(file_bytes: bytes) -> str:
                 with open(txt_temp_path, "r", encoding="utf-8", errors="ignore") as f:
                     extracted_text = f.read()
 
-            return extracted_text.strip()
+            extracted_text = extracted_text.strip()
+            score = calculate_text_quality_score(extracted_text)
+            return extracted_text, score       
         else:
-            return "HWP 텍스트 파일 변환 실패 (파일 미생성)"
+            return "HWP 텍스트 파일 변환 실패", 0.0
 
     except Exception as e:
-        return f"HWP 파싱 에러: {str(e)}"
+        return f"HWP 파싱 에러: {str(e)}", 0.0
         
     finally:
         if hwp_app is not None:
@@ -93,13 +111,12 @@ def parse_hwp(file_bytes: bytes) -> str:
 
 def process_local_ocr(file_bytes: bytes, extension: str) -> str:
     """다양한 문서 포맷(이미지, PDF, TXT, DOCX, HWP)에서 로컬 텍스트를 추출합니다."""
+    reader = get_ocr_engine("easyocr")
+    extension = extension.lower().replace(".", "")
     try:
         # 1. 텍스트 파일 (.txt)
         if extension == "txt":
-            try:
-                return file_bytes.decode('utf-8')
-            except UnicodeDecodeError:
-                return file_bytes.decode('cp949', errors='ignore')
+            return parse_txt(file_bytes)
 
         # 2. 워드 파일 (.docx)
         elif extension == "docx":
@@ -114,29 +131,46 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
             # poppler 에러가 난다면 poppler_path에 poppler의 bin 폴더가 있는 r"C:\실제경로" 를 명시
             images = convert_from_bytes(file_bytes, poppler_path=r"C:\Release-26.02.0-0\poppler-26.02.0\Library\bin") 
             if not images:
-                return "PDF 파일에서 이미지를 추출할 수 없습니다."
+                return "PDF 파일에서 이미지를 추출할 수 없습니다.", 0.0
             
             full_text_list = []
+            all_confidences = []
+
             for i, pil_image in enumerate(images):
-                img_byte_arr = io.BytesIO()
-                pil_image.save(img_byte_arr, format='PNG')
-                ocr_input = img_byte_arr.getvalue()
+                img_np = np.array(pil_image)
+        
+                results = reader.readtext(img_np, detail=1)
                 
-                page_result = reader.readtext(ocr_input, detail=0)
-                page_text = " ".join(page_result)
+                page_texts = []
+                for _, text, prob in results:
+                    page_texts.append(text)
+                    all_confidences.append(prob)
+                
+                page_text = " ".join(page_texts)
                 full_text_list.append(f"[Page {i+1}] {page_text}")
                 
-            return "\n".join(full_text_list)
+            avg_confidence = (sum(all_confidences) / len(all_confidences)) if all_confidences else 0.0
+            return "\n".join(full_text_list), round(avg_confidence, 4)
 
         # 5. 일반 이미지 파일 (.jpg, .jpeg, .png)
         else:
-            result = reader.readtext(file_bytes, detail=0)
-            return "\n".join(result)
+            image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+            img_np = np.array(image)
+            results = reader.readtext(img_np, detail=1)
+            
+            texts = []
+            confidences = []
+            for _, text, prob in results:
+                texts.append(text)
+                confidences.append(prob)
+                
+            avg_confidence = (sum(confidences) / len(confidences)) if confidences else 0.0
+            return "\n".join(texts), round(avg_confidence, 4)
         
     except Exception as e:
-        return f"텍스트 추출 중 오류 발생: {str(e)}"
+        return f"텍스트 추출 중 오류 발생: {str(e)}", 0.0
 
-async def process_easyocr(file: UploadFile):
+async def process_easyocr(file: UploadFile, gt_text: Optional[str] = None):
     """파일(이미지/PDF/TXT/DOCX/HWP)을 업로드 받아 텍스트를 추출하는 엔드포인트"""
     # 실행 전 시간 측정
     request_start_time = time.perf_counter()
@@ -171,16 +205,39 @@ async def process_easyocr(file: UploadFile):
         )
     
     # 2. 파일 읽기
-    file_bytes = await file.read()
-    
+    file_bytes = await file.read()    
     # 3. 확장자별 처리 및 텍스트 추출
+    parsed_text = ""
+    score = 0.0
     parsing_start_time = time.perf_counter()
-    parsed_text = process_local_ocr(file_bytes, ext)
+    try:
+        # 단 1줄로 OCR 전체 로직 수행
+        parsed_text, default_score = process_local_ocr(file_bytes, ext)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        # reader 객체는 삭제하지 않음 (GPU 상주)
+        # 추론 중 할당되었던 VRAM 임시 파편(Tensor Cache)만 비워줌
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+    if gt_text and gt_text.strip():
+        acc_info = calculate_cer_accuracy(gt_text=gt_text, pred_text=parsed_text)
+        acc_info["evaluation_type"] = "Ground Truth Comparison (CER)"
+    # Ground Truth가 없는 경우: 기존 모델 신뢰도 / 유효성 점수 유지
+    else:
+        acc_info = {
+            "score": default_score,
+            "accuracy_percentage": f"{round(default_score * 100, 2)}%",
+            "evaluation_type": "Model Confidence / Text Validity"
+        }
     parsing_end_time = time.perf_counter()
 
     # 파싱 소요 시간 (초 단위, 소수점 3자리 반올림)
     parsing_duration = round(parsing_end_time - parsing_start_time, 3)
-    
     # 4. 전체 요청 처리 소요 시간 측정
     request_end_time = time.perf_counter()
     total_duration = round(request_end_time - request_start_time, 3)
@@ -190,6 +247,7 @@ async def process_easyocr(file: UploadFile):
         "filename": file.filename,
         "ocr_text": parsed_text,
         "model_used": "EasyOCR",
+        "accuracy_info": acc_info,
         "parsing_time_seconds": parsing_duration,
         "total_api_time_seconds": total_duration
     }

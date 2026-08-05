@@ -17,7 +17,7 @@ async def upload_ocr(file: UploadFile, model: str = "easy"):
         f"{OCR_SERVER}/api/ocr/upload",
         files=files,
         data={
-            "model": model
+            "ocr_type": model
         }
     )
 
