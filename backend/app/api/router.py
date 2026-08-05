@@ -1,5 +1,4 @@
 from urllib import response
-
 from app.schemas.result import SummarizeRequest, SummarizeResponse
 from app.services.result_service import ResultService
 from app.schemas.summary_request import SummaryRequest
