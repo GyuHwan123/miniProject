@@ -19,22 +19,7 @@ print("OCR 모델 로딩 중... 잠시만 기다려주세요.")
 reader = easyocr.Reader(['ko', 'en'], gpu=False) 
 print("OCR 모델 로딩 완료!")
 
-def calculate_text_quality_score(text: str) -> float:
-    """
-    덤프된 텍스트의 유효성(정확도)을 계산합니다.
-    정상 한글, 영문, 숫자, 공백, 기본 문장부호의 비율을 측정합니다.
-    """
-    if not text or not text.strip():
-        return 0.0
-    
-    total_chars = len(text)
-    # 완성형 한글(가-힣), 자음/모음, 영문, 숫자, 공백 및 기본 문장부호 정규식
-    valid_chars = re.findall(r'[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9\s.,?!~\-_\(\)\[\]\'"]', text)
-    valid_count = len(valid_chars)
-    
-    score = valid_count / total_chars
-    return round(score, 4)
-
+from quality import calculate_text_quality_score
 
 def parse_txt(file_bytes: bytes) -> tuple[str, float]:
     """TXT 바이너리에서 인코딩 자동 감지 후 텍스트 및 정확도 추출"""

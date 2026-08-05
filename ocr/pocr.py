@@ -26,21 +26,7 @@ MAX_FILE_SIZE = 20 * 1024 * 1024
 # poppler가 설치된 bin 폴더 경로를 지정해 줍니다.
 POPPLER_PATH = r"C:\Release-26.02.0-0\poppler-26.02.0\Library\bin"
 
-def calculate_text_quality_score(text: str) -> float:
-    """
-    디지털 텍스트 덤프(TXT, DOCX, HWP)의 유효성(정확도)을 계산합니다.
-    정상 한글, 영문, 숫자, 공백, 기본 문장부호의 비율을 측정합니다.
-    """
-    if not text or not text.strip():
-        return 0.0
-    
-    total_chars = len(text)
-    valid_chars = re.findall(r'[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9\s.,?!~\-_\(\)\[\]\'"]', text)
-    valid_count = len(valid_chars)
-    
-    score = valid_count / total_chars
-    return round(score, 4)
-
+from quality import calculate_text_quality_score
 
 def parse_image_with_paddle(file_bytes: bytes) -> str:
     """PaddleOCR을 이용한 이미지 텍스트 추출 함수"""
