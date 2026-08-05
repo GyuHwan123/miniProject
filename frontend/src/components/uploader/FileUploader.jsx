@@ -13,7 +13,7 @@ const FileUploader = ({ onClose, onNext }) => {
   const MAX_FILES = 5;
   // 20MB 제한 설정 (20 * 1024 * 1024 bytes)
   const MAX_FILE_SIZE = 20 * 1024 * 1024;
-  const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf', 'hwp', 'docs', 'doc'];
+  const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf', 'hwp', 'docx'];
 
   const validateAndAddFiles = (newFiles) => {
     const fileList = Array.from(newFiles);
@@ -34,7 +34,7 @@ const FileUploader = ({ onClose, onNext }) => {
     });
 
     if (validFiles.length !== fileList.length) {
-      alert('.jpg, .png, .pdf, .hwp, .docs 형식의 파일만 업로드 가능합니다.');
+      alert('.jpg, .png, .pdf, .hwp, .docx 형식의 파일만 업로드 가능합니다.');
     }
 
     setSelectedFiles((prevFiles) => [...prevFiles, ...validFiles]);
@@ -167,7 +167,7 @@ const FileUploader = ({ onClose, onNext }) => {
       </div>
 
       {/* 안내 문구 */}
-      <p className="support-text">.jpg, .png, .pdf, .hwp, .docs 파일만 지원합니다.</p>
+      <p className="support-text">.jpg, .png, .pdf, .hwp, .docx 파일만 지원합니다.</p>
 
       {/* 선택된 파일 목록 */}
       {selectedFiles.length > 0 && (
