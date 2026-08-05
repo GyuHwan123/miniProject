@@ -4,77 +4,92 @@ import time
 import tempfile
 from docx import Document
 import win32com.client
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from PIL import Image
 import numpy as np
-from paddleocr import PaddleOCR
-import fitz
+from pdf2image import convert_from_bytes
 from typing import Optional
-
-ocr_engine = PaddleOCR(use_angle_cls=True, lang='korean', use_gpu=False)
+import gc
+import torch
+import cv2
 
 # 파일 용량 제한 (20MB)
 MAX_FILE_SIZE = 20 * 1024 * 1024  
-# poppler가 설치된 bin 폴더 경로를 지정해 줍니다.
-POPPLER_PATH = r"C:\Release-26.02.0-0\poppler-26.02.0\Library\bin"
 
 from quality import calculate_text_quality_score
 from accuracy import calculate_cer_accuracy
+from model_manager import get_ocr_engine
+
+ocr_engine = get_ocr_engine("paddleocr")
 
 def parse_image_with_paddle(file_bytes: bytes) -> str:
     """PaddleOCR을 이용한 이미지 텍스트 추출 함수"""
-        # 1. 이미지 처리
-    image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
-    img_np = np.array(image) # PaddleOCR은 Numpy Array 입력을 받습니다.
-        
-        # PaddleOCR 수행
-    result = ocr_engine.ocr(img_np, cls=True)
 
-    extracted_lines = []
+    result = ocr_engine.ocr(file_bytes, cls=True)
+
+    texts = []
     confidences = []
-        
-        # 결과 처리 (result -> [page_result -> [ [[box], (text, score)], ... ]])
-    if result and result[0]:
-        for line in result[0]:
-            text = line[1][0]  # (텍스트, 신뢰도) 중 텍스트 선택
-            score = line[1][1] 
-            extracted_lines.append(text)
-            confidences.append(score)
+
+    if result:
+        # PaddleOCR의 리스트 중첩(Depth) 변동 완벽 방어
+        lines = result[0] if (isinstance(result, list) and len(result) > 0 and result[0] is not None) else []
+
+        for line in lines:
+            if not line or len(line) < 2:
+                continue
             
-    avg_confidence = (sum(confidences) / len(confidences)) if confidences else 0.0
-    return "\n".join(extracted_lines), round(avg_confidence, 4)
+            text_info = line[1] # ("텍스트", 점수)
+            if isinstance(text_info, (tuple, list)) and len(text_info) >= 2:
+                text = text_info[0]
+                score = float(text_info[1])
+                
+                # 유효 점수만 수집
+                texts.append(text)
+                confidences.append(score)
+
+    # 2. 정확한 산술 평균 계산
+    if confidences:
+        avg_confidence = sum(confidences) / len(confidences)
+    else:
+        avg_confidence = 0.0
+
+    return "\n".join(texts), round(avg_confidence, 4)
+    
 
 def parse_pdf_with_paddle(file_bytes: bytes) -> str:
-    """Poppler 설치 없이 파이썬 라이브러리로만 PDF를 OCR하는 함수"""
-    extracted_lines = []
+    images = convert_from_bytes(
+        file_bytes, 
+        poppler_path=r"C:\Release-26.02.0-0\poppler-26.02.0\Library\bin"
+    )
+    if not images:
+        return "PDF 파일에서 이미지를 추출할 수 없습니다.", 0.0
+
+    full_text_list = []
     all_confidences = []
 
-    # 메모리의 PDF 바이트 데이터를 읽기
-    pdf_doc = fitz.open(stream=file_bytes, filetype="pdf")
-    
-    for page_idx, page in enumerate(pdf_doc):
-        # PDF 페이지를 고해상도 이미지(PixMap)로 렌더링 (DPI 200 수준 설정)
-        pix = page.get_pixmap(dpi=150)
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        img_np = np.array(img)
-        
-        # PaddleOCR 수행
-        result = ocr_engine.ocr(img_np, cls=True)
-        
-        page_text = []
+    for i, pil_image in enumerate(images):       
+        img_np = np.ascontiguousarray(np.array(pil_image.convert("RGB"), dtype=np.uint8))
+        img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+        result = ocr_engine.ocr(img_bgr, cls=True)
+
+        page_texts = []
         if result and result[0]:
             for line in result[0]:
+                # line 구조: [ [[x1,y1],...], ("텍스트", 신뢰도) ]
                 text = line[1][0]
-                score = line[1][1]
-                page_text.append(text)
-                all_confidences.append(score)
+                prob = line[1][1] # float 형태의 정확한 신뢰도 점수
                 
-        extracted_lines.append(f"--- [Page {page_idx + 1}] ---")
-        extracted_lines.append("\n".join(page_text))
-        
+                page_texts.append(text)
+                all_confidences.append(prob)
+
+        page_text = " ".join(page_texts)
+        full_text_list.append(f"[Page {i+1}] {page_text}")
+
     avg_confidence = (sum(all_confidences) / len(all_confidences)) if all_confidences else 0.0
-    return "\n".join(extracted_lines), round(avg_confidence, 4)
+    del images
+
+    return "\n".join(full_text_list), round(avg_confidence, 4)
 
 def parse_txt(file_bytes: bytes) -> tuple[str, float]:
     """TXT 파일 파싱 및 유효성 점수 계산"""
@@ -151,6 +166,7 @@ def parse_hwp(file_bytes: bytes) -> str:
 
 def process_local_ocr(file_bytes: bytes, ext: str) -> tuple[str, float]:
     """확장자별 문서 파싱 분기"""
+    ocr_engine = get_ocr_engine("paddleocr")
     try:
         if ext in ["jpg", "jpeg", "png"]:
             return parse_image_with_paddle(file_bytes)
@@ -205,7 +221,17 @@ async def process_paddleocr(file: UploadFile, gt_text: Optional[str] = None):
     
     # 3. 텍스트 추출 실행
     parsing_start_time = time.perf_counter()
-    parsed_text, default_score = process_local_ocr(file_bytes, ext)
+    try:
+            parsed_text, default_score = process_local_ocr(file_bytes, ext)
+    
+    except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    finally:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
     # Ground Truth가 들어온 경우: 원문 대조 정확도 계산
     if gt_text and gt_text.strip():
         acc_info = calculate_cer_accuracy(gt_text=gt_text, pred_text=parsed_text)
