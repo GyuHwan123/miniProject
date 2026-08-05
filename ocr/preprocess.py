@@ -1,98 +1,45 @@
 import cv2
 import numpy as np
 
-
 def preprocess_image(file_path):
-
-    # 이미지 읽기
+    # 1. 이미지 읽기
     img = cv2.imread(file_path)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # 2. 텍스트 덩어리 영역 추출을 위한 임시 이진화
+    blur = cv2.GaussianBlur(gray, (9, 9), 0)
+    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # 픽셀 좌표 모으기 및 최소 면적 사각형 계산
+    coords = np.column_stack(np.where(thresh > 0))
+    angle = cv2.minAreaRect(coords)[-1]
+    
+    # OpenCV 버전에 따른 각도 정규화 (-45도 ~ 45도 사이로 맞춤)
+    if angle > 45:
+        angle = angle - 90
+    elif angle < -45:
+        angle = -(90 + angle)
+    else:
+        angle = -angle
+        
+    # 3. ⭐️ 스마트 기울기 보정 (핵심 안전장치)
+    # 각도가 0.5도 ~ 15도 사이일 때만 '삐뚤어지게 찍힌 사진'으로 간주하고 회전
+    if 0.5 < abs(angle) < 15:
+        (h, w) = img.shape[:2]
+        center = (w // 2, h // 2)
+        M = cv2.getRotationMatrix2D(center, angle, 1.0)
+        img = cv2.warpAffine(
+            img, M, (w, h), 
+            flags=cv2.INTER_CUBIC, 
+            borderMode=cv2.BORDER_REPLICATE
+        )
 
-    # 크기 확대
-    img = cv2.resize(
-        img,
-        None,
-        fx=3,
-        fy=3,
-        interpolation=cv2.INTER_CUBIC
-    )
+    # 4. 해상도 2배 확대 (작은 글씨와 표 실선 보존)
+    img_resized = cv2.resize(img, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
+    
+    # 5. 최종 흑백화
+    final_gray = cv2.cvtColor(img_resized, cv2.COLOR_BGR2GRAY)
 
-    # 흑백 변환
-    gray = cv2.cvtColor(
-        img,
-        cv2.COLOR_BGR2GRAY
-    )
-
-
-    # 밝은 이미지 어둡게 (감마)
-    gamma = 2.5
-
-    table = np.array([
-        ((i / 255.0) ** gamma) * 255
-        for i in np.arange(256)
-    ]).astype("uint8")
-
-    gamma_img = cv2.LUT(
-        gray,
-        table
-    )
-
-
-    # 대비 강화
-    clahe = cv2.createCLAHE(
-        clipLimit=3.0,
-        tileGridSize=(8,8)
-    )
-
-    contrast = clahe.apply(
-        gamma_img
-    )
-
-
-    # 노이즈 제거
-    denoise = cv2.fastNlMeansDenoising(
-        contrast
-    )
-
-
-
-    # 이진화
-    binary = cv2.threshold(
-        denoise,
-        0,
-        255,
-        cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )[1]
-
-    kernel = np.array([
-        [-1,-1,-1],
-        [-1, 9,-1],
-        [-1,-1,-1]
-    ])
-
-    sharp = cv2.filter2D(
-        denoise,
-        -1,
-        kernel
-    )
-
-    # 글자 끊김 보완
-    kernel = cv2.getStructuringElement(
-        cv2.MORPH_RECT,
-        (2,2)
-    )
-
-    closed = cv2.morphologyEx(
-        binary,
-        cv2.MORPH_CLOSE,
-        kernel
-    )
-
-    # 글자 획 굵게 (Dilation)
-    dilated = cv2.dilate(
-        closed,
-        kernel,
-        iterations=2
-    )
-
-
-    return dilated
+    
+    
+    return final_gray

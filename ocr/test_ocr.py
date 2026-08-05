@@ -9,7 +9,7 @@ ocr = PaddleOCR(
 )
 
 
-input_path = "test_images/3-1.jpg"
+input_path = "test_images/3-3.jpg"
 
 
 # =====================
