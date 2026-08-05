@@ -1,9 +1,12 @@
-from fastapi import APIRouter, File, UploadFile, Form
+from urllib import response
 from app.schemas.result import SummarizeRequest, SummarizeResponse
+from app.services.result_service import ResultService
 from app.schemas.summary_request import SummaryRequest
 from app.schemas.summary_response import SummaryResponse
-from app.services.result_service import ResultService
 from app.services.summary_service import summary_service
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+
+import requests
 
 
 router = APIRouter()
@@ -58,8 +61,43 @@ def summarize(req: SummaryRequest):
 
     return {
         "summary": summary
-
     }
+
+@router.post("/api/ocr/upload")
+async def upload(file: UploadFile = File(...),ocr_type: str = Form(...)):
+
+    try:
+        files = {
+            "file": (
+                file.filename,
+                await file.read(),
+                file.content_type,
+            )
+        }
+    
+        response = requests.post(
+            "http://localhost:8002/api/ocr/upload",
+            files=files,
+            data={"ocr_type": ocr_type},
+            timeout=60
+        )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR 서버 연결 실패: {str(e)}"
+        )
+    
+
+    print("status =", response.status_code)
+    print("text =", response.text)
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=response.text
+        )
+
+    return response.json()
 
 
 @router.post("/api/ocr/test")
@@ -76,3 +114,4 @@ async def ocr_test(
         "task_id": "test_task_123",
         "ocr_text": f"[테스트 OCR 결과 데이터]\n- 파일명: {file.filename}\n- 엔진: {ocr_type}\n- \n더미 데이터: 김\n해\n군\n우621\n010/경남\n김해시\n61\n-1/전화052530 -1351/전송1052536\n-1978담당배병급\n/\n문서번호\n지경\n55142\n둔\nY\n군\n수\n94 7 7\nY롱Y\n보존\nAyv\n경\n유\n[제1안]\n-\n-\n부\n군'\n수\n신\n장\n조\n겨\n장\n기안\n협조\n제\n목\n공장설립\n신고수리\n|하2\n장유면\n864번지\n주\n표\nY\n을\n으로\n부터\n공업배치및공장설립에관한법률\n13조\n제\n1항의\n규정에\n의거\n공장설립\n신고가\n108\n동법시행령\n2항의\n규정에\n의거\n제\n19조\n|0큰\n수리하고\n별첨\n공장설립\n신고\n를Y놓\n교부코자\n기거\n2\nI|이러군흐Y\n철저를\n기하고자\n이\n붕\n를ㄹ을\n-\n지정코자\n기거\n변경\n신고수리\n사항\n경\n-\n명[\n소재지\n대지면적m\n건축면적m?\n-\n-\n대\n'표'자\n송\n주서륭\n클프이어\n10655\n880162\n유하\n864번지외8필\n그직물제조업\n공장설립\nY뇨\n첨\n부\n신고\n1부\n조건사항\n1부\n2\n[제2안]\n수\n굶용요\n러음용\n864번지\n주\n신\n서륭\n표\n제3목\n공장설립\n신고수리\nㄱ울\n귀하께서\n공장설립\n신청하신\n변경\n신고에\n어왜\n공업배치\n및\n10클류요운\n제\n19조\n2항의\n규정에\n의거\n어로\n조건부\n수리하고\n공장설립\n변경\n15"
     }
+

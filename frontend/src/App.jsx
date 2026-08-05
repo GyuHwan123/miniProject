@@ -4,15 +4,15 @@ import Footer from './components/common/Footer';
 import Loading from './components/common/Loading';
 import FileUploader from './components/uploader/FileUploader';
 import Result from './pages/Result';
+import {uploadOCR} from "./api/ocrApi";
+
 import './App.scss';
 
 function App() {
   // 현재 화면 단계를 관리하는 상태 ('upload' 또는 'result')
   const [step, setStep] = useState('upload');
-
-  // 💡 OCR 결과를 담아둘 중앙 상태
   const [ocrText, setOcrText] = useState('');
-  const [summaryResult, setSummaryResult] = useState(''); //이거 테스트용임
+  /* const [summaryResult, setSummaryResult] = useState(''); //이거 테스트용임 */
   const [isLoading, setIsLoading] = useState(false);
   const [isLlmLoading, setIsLlmLoading] = useState(false);
 
@@ -34,13 +34,7 @@ function App() {
       formData.append('file', files[0]);
       formData.append('ocr_type', ocrType);
 
-      /* const response = await fetch('http://localhost:8000/api/ocr/test', {
-        method: 'POST',
-        body: formData,
-      }); */  //정상
-
-      // ⚠️ 요기! const response = ... 로 되어 있다면 const ocrResponse = ... 로 변경!
-      const response = await fetch('http://localhost:8000/api/ocr/test', {
+      const response = await fetch('http://localhost:8000/api/ocr/upload', {
         method: 'POST',
         body: formData,
       }); //테스트
@@ -107,7 +101,6 @@ function App() {
             >
               ← 다시 업로드하기
             </button>
-            {/* 👈 🔑 가장 중요: Result 컴포넌트에 가져온 ocrText를 내려줍니다! */}
             <Result ocrText={ocrText} />
           </div>
         )}

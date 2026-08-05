@@ -116,6 +116,7 @@ const FileUploader = ({ onClose, onNext }) => {
 
   // OCR 종류를 인자로 받아 상위 컴포넌트(App.jsx의 onNext)로 전달
   const handleOcrSubmit = (ocrType) => {
+    console.log("선택한 OCR:", ocrType);
     if (selectedFiles.length === 0) return;
 
     // 💡 직접 fetch하지 않고 App.jsx의 handleNext(files, ocrType)를 실행시킵니다!

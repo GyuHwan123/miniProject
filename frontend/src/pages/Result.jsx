@@ -8,7 +8,6 @@ import './Result.scss';
 const Result = ({ ocrText: propsOcrText }) => {
   const { summaryId } = useParams();
   const location = useLocation();
-
   // 1. OCR 텍스트 상태 (가상의 OCR 출력 완료물)
   /* const [ocrText] = useState(
     `[문서 분석 결과]\n\n1. 발행일자: 2026-08-04\n2. 담당자: 홍길동\n\n[상세 내용]\n- 본 문서는 OCR 개행 테스트용 예시 데이터입니다.\n- 줄바꿈과 목록 형태가 올바르게 표시되는지 확인합니다.\n- 공백과 엔터가 그대로 유지되는지 체크해 보세요.`
