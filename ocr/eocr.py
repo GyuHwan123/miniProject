@@ -1,6 +1,6 @@
 import os
 import io
-import re
+from typing import Optional
 import time
 from fastapi import UploadFile
 from fastapi.responses import JSONResponse
@@ -9,17 +9,12 @@ from pdf2image import convert_from_bytes
 from docx import Document
 import win32com.client
 import tempfile
-import tkinter as tk
-
 
 MAX_FILE_SIZE = 20 * 1024 * 1024
-
-print("OCR 모델 로딩 중... 잠시만 기다려주세요.")
-# EasyOCR 모델을 메모리에 로드 (한국어, 영어 지원)
 reader = easyocr.Reader(['ko', 'en'], gpu=False) 
-print("OCR 모델 로딩 완료!")
 
 from quality import calculate_text_quality_score
+from accuracy import calculate_cer_accuracy
 
 def parse_txt(file_bytes: bytes) -> tuple[str, float]:
     """TXT 바이너리에서 인코딩 자동 감지 후 텍스트 및 정확도 추출"""
@@ -169,7 +164,7 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
     except Exception as e:
         return f"텍스트 추출 중 오류 발생: {str(e)}"
 
-async def process_easyocr(file: UploadFile):
+async def process_easyocr(file: UploadFile, gt_text: Optional[str] = None):
     """파일(이미지/PDF/TXT/DOCX/HWP)을 업로드 받아 텍스트를 추출하는 엔드포인트"""
     # 실행 전 시간 측정
     request_start_time = time.perf_counter()
@@ -204,16 +199,25 @@ async def process_easyocr(file: UploadFile):
         )
     
     # 2. 파일 읽기
-    file_bytes = await file.read()
-    
+    file_bytes = await file.read()    
     # 3. 확장자별 처리 및 텍스트 추출
     parsing_start_time = time.perf_counter()
-    parsed_text, confidence = process_local_ocr(file_bytes, ext)
+    parsed_text, default_score = process_local_ocr(file_bytes, ext)
+
+    if gt_text and gt_text.strip():
+        acc_info = calculate_cer_accuracy(gt_text=gt_text, pred_text=parsed_text)
+        acc_info["evaluation_type"] = "Ground Truth Comparison (CER)"
+    # Ground Truth가 없는 경우: 기존 모델 신뢰도 / 유효성 점수 유지
+    else:
+        acc_info = {
+            "score": default_score,
+            "accuracy_percentage": f"{round(default_score * 100, 2)}%",
+            "evaluation_type": "Model Confidence / Text Validity"
+        }
     parsing_end_time = time.perf_counter()
 
     # 파싱 소요 시간 (초 단위, 소수점 3자리 반올림)
     parsing_duration = round(parsing_end_time - parsing_start_time, 3)
-    
     # 4. 전체 요청 처리 소요 시간 측정
     request_end_time = time.perf_counter()
     total_duration = round(request_end_time - request_start_time, 3)
@@ -222,11 +226,8 @@ async def process_easyocr(file: UploadFile):
     return {
         "filename": file.filename,
         "ocr_text": parsed_text,
-        "accuracy_info": {
-            "average_confidence": confidence,            
-            "accuracy_percentage": f"{round(confidence * 100, 2)}%"  
-        },
         "model_used": "EasyOCR",
+        "accuracy_info": acc_info,
         "parsing_time_seconds": parsing_duration,
         "total_api_time_seconds": total_duration
     }

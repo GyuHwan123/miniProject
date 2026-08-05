@@ -1,24 +1,17 @@
 import os
 import io
-import re
 import time
 import tempfile
 from docx import Document
 import win32com.client
 from fastapi import UploadFile
 from fastapi.responses import JSONResponse
-from pdf2image import convert_from_bytes
 from PIL import Image
 import numpy as np
 from paddleocr import PaddleOCR
 import fitz
+from typing import Optional
 
-
-# -------------------------------------------------------------
-# PaddleOCR 전역 객체 초기화 (서버 시작 시 1회 로드)
-# lang='korean'으로 지정하여 한국어/영어 동시 지원
-# use_gpu=False (기본 CPU 동작. GPU 사용 환경이라면 True로 변경)
-# -------------------------------------------------------------
 ocr_engine = PaddleOCR(use_angle_cls=True, lang='korean', use_gpu=False)
 
 # 파일 용량 제한 (20MB)
@@ -27,6 +20,7 @@ MAX_FILE_SIZE = 20 * 1024 * 1024
 POPPLER_PATH = r"C:\Release-26.02.0-0\poppler-26.02.0\Library\bin"
 
 from quality import calculate_text_quality_score
+from accuracy import calculate_cer_accuracy
 
 def parse_image_with_paddle(file_bytes: bytes) -> str:
     """PaddleOCR을 이용한 이미지 텍스트 추출 함수"""
@@ -173,7 +167,7 @@ def process_local_ocr(file_bytes: bytes, ext: str) -> tuple[str, float]:
         return f"텍스트 추출 중 오류 발생: {str(e)}", 0.0
 
 
-async def process_paddleocr(file: UploadFile):
+async def process_paddleocr(file: UploadFile, gt_text: Optional[str] = None):
     """파일(이미지/PDF/TXT/DOCX/HWP) 업로드 및 텍스트 추출 라우터"""
 
     # 전체 요청 시작 시간 측정
@@ -211,7 +205,19 @@ async def process_paddleocr(file: UploadFile):
     
     # 3. 텍스트 추출 실행
     parsing_start_time = time.perf_counter()
-    parsed_text, accuracy_score = process_local_ocr(file_bytes, ext)
+    parsed_text, default_score = process_local_ocr(file_bytes, ext)
+    # Ground Truth가 들어온 경우: 원문 대조 정확도 계산
+    if gt_text and gt_text.strip():
+        acc_info = calculate_cer_accuracy(gt_text=gt_text, pred_text=parsed_text)
+        acc_info["evaluation_type"] = "Ground Truth Comparison (CER)"
+    # Ground Truth가 없는 경우: 기존 모델 신뢰도 / 유효성 점수 유지
+    else:
+        acc_info = {
+            "score": default_score,
+            "accuracy_percentage": f"{round(default_score * 100, 2)}%",
+            "evaluation_type": "Model Confidence / Text Validity"
+        }
+        
     parsing_end_time = time.perf_counter()
 
     parsing_duration = round(parsing_end_time - parsing_start_time, 3)
@@ -225,10 +231,7 @@ async def process_paddleocr(file: UploadFile):
         "filename": file.filename,
         "ocr_text": parsed_text,
         "model_used": "PaddleOCR + Native Document Parsers",
-        "accuracy_info": {
-            "score": accuracy_score,
-            "accuracy_percentage": f"{round(accuracy_score * 100, 2)}%"
-        },
+        "accuracy_info": acc_info,
         "parsing_time_seconds": parsing_duration,
         "total_api_time_seconds": total_duration
     }
