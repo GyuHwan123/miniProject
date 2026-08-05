@@ -20,11 +20,10 @@ $text-dark: #1f2937;
   }
 
   .content-box {
-    flex: 1;
     background-color: $bg-box;
     border-radius: 16px;
     padding: 24px;
-    min-height: 420px;
+    height: 550px;
     overflow-y: auto;
 
     .text-content {

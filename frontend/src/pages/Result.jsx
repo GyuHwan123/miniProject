@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import ResultViewer from '../components/result/ResultViewer';
 import LlmStructuredViewer from '../components/result/LlmStructuredViewer';
+import Loading from '../components/common/Loading';
 import './Result.scss';
 
 const Result = ({ ocrText: propsOcrText }) => {
@@ -80,6 +81,8 @@ const Result = ({ ocrText: propsOcrText }) => {
 
   return (
     <div className="search-result-container">
+      {/* 💡 2. isLoading이 true일 때 전체 화면 로딩 오버레이 띄우기! */}
+      {isLoading && <Loading message="LLM이 문서를 요약하고 있습니다..." />}
       <div className="result-grid">
         {/* 왼쪽 OCR 텍스트 영역 */}
         <div className="grid-item">

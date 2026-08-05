@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Header from './components/common/Header';
 import Footer from './components/common/Footer';
+import Loading from './components/common/Loading';
 import FileUploader from './components/uploader/FileUploader';
 import Result from './pages/Result';
 import {uploadOCR} from "./api/ocrApi";
@@ -11,7 +12,11 @@ function App() {
   // 현재 화면 단계를 관리하는 상태 ('upload' 또는 'result')
   const [step, setStep] = useState('upload');
   const [ocrText, setOcrText] = useState('');
+  /* const [summaryResult, setSummaryResult] = useState(''); //이거 테스트용임 */
   const [isLoading, setIsLoading] = useState(false);
+  const [isLlmLoading, setIsLlmLoading] = useState(false);
+
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   // 모달에서 'OCR 실행' 버튼을 눌렀을 때 실행되는 함수
   const handleNext = async (files, ocrType) => {
@@ -20,9 +25,11 @@ function App() {
     if (!files || files.length === 0) return;
 
     setIsLoading(true);
+    
 
     try {
       // 1️⃣ 백엔드(8000번)로 파일 전송 및 OCR 요청 (진짜 백엔드 연동 시)
+      setLoadingMessage('OCR 실행 중...');
       const formData = new FormData();
       formData.append('file', files[0]);
       formData.append('ocr_type', ocrType);
@@ -30,14 +37,22 @@ function App() {
       const response = await fetch('http://localhost:8000/api/ocr/upload', {
         method: 'POST',
         body: formData,
-      });
+      }); //테스트
 
-      if (!response.ok) throw new Error('OCR 통신 실패');
+      // if (!response.ok) throw new Error('OCR 통신 실패'); // 정상
+      // ⚠️ 아래에서 ocrResponse를 검사하므로 위 선언과 이름이 일치해야 합니다.
+      if (!response.ok) throw new Error('OCR 통신 실패');//테스트
 
       const data = await response.json();
       // 백엔드가 반환한 OCR 텍스트를 App의 ocrText 상태에 저장!
-      /* setOcrText(data.ocr_text || data.text); */
+      // setOcrText(data.ocr_text || data.text);
       setOcrText(data.ocr_text);
+      /* const ocrData = await ocrResponse.json();
+      const extractedText = ocrData.ocr_text || ''; */
+      
+      //setOcrText(extractedText);
+
+      
 
     } /* catch (error) {
       console.error("OCR 요청 실패, 테스트용 더미 데이터를 채웁니다:", error);
@@ -62,6 +77,10 @@ function App() {
 
   return (
     <div className="app-layout">
+      {/* 💡 OCR 로딩(isLoading) 또는 LLM 로딩(isLlmLoading) 중 하나라도 true면 로딩창을 띄웁니다 */}
+      {(isLoading || isLlmLoading) && (
+        <Loading message={isLoading ? loadingMessage : "LLM 변환 중..."} />
+      )}
       <Header />
 
       <main className="app-content">

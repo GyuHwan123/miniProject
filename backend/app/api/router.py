@@ -64,25 +64,29 @@ def summarize(req: SummaryRequest):
     }
 
 @router.post("/api/ocr/upload")
-async def upload(
-    file: UploadFile = File(...),
-    ocr_type: str = Form(...)
-    ):
+async def upload(file: UploadFile = File(...),ocr_type: str = Form(...)):
 
-    print(f"[OCR 업로드] 받은 파일: {file.filename}, 선택한 OCR: {ocr_type}")
-    files = {
-        "file": (
-            file.filename,
-            await file.read(),
-            file.content_type,
+    try:
+        files = {
+            "file": (
+                file.filename,
+                await file.read(),
+                file.content_type,
+            )
+        }
+    
+        response = requests.post(
+            "http://localhost:8002/api/ocr/upload",
+            files=files,
+            data={"ocr_type": ocr_type},
+            timeout=60
         )
-    }
-
-    response = requests.post(
-        "http://localhost:8002/api/ocr/upload",
-        files=files,
-        data={"ocr_type": ocr_type}
-    )
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OCR 서버 연결 실패: {str(e)}"
+        )
+    
 
     print("status =", response.status_code)
     print("text =", response.text)
