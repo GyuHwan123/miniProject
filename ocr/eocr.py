@@ -2,19 +2,22 @@ import os
 import io
 from typing import Optional
 import time
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from fastapi.responses import JSONResponse
-import easyocr
 from pdf2image import convert_from_bytes
 from docx import Document
 import win32com.client
 import tempfile
+import gc
+import torch
+from PIL import Image
+import numpy as np
 
 MAX_FILE_SIZE = 20 * 1024 * 1024
-reader = easyocr.Reader(['ko', 'en'], gpu=False) 
 
 from quality import calculate_text_quality_score
 from accuracy import calculate_cer_accuracy
+from model_manager import get_ocr_engine
 
 def parse_txt(file_bytes: bytes) -> tuple[str, float]:
     """TXT 바이너리에서 인코딩 자동 감지 후 텍스트 및 정확도 추출"""
@@ -108,6 +111,8 @@ def parse_hwp(file_bytes: bytes) -> str:
 
 def process_local_ocr(file_bytes: bytes, extension: str) -> str:
     """다양한 문서 포맷(이미지, PDF, TXT, DOCX, HWP)에서 로컬 텍스트를 추출합니다."""
+    reader = get_ocr_engine("easyocr")
+    extension = extension.lower().replace(".", "")
     try:
         # 1. 텍스트 파일 (.txt)
         if extension == "txt":
@@ -132,10 +137,9 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
             all_confidences = []
 
             for i, pil_image in enumerate(images):
-                img_byte_arr = io.BytesIO()
-                pil_image.save(img_byte_arr, format='PNG')
-                ocr_input = img_byte_arr.getvalue()
-                results = reader.readtext(ocr_input, detail=1)
+                img_np = np.array(pil_image)
+        
+                results = reader.readtext(img_np, detail=1)
                 
                 page_texts = []
                 for _, text, prob in results:
@@ -150,7 +154,9 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
 
         # 5. 일반 이미지 파일 (.jpg, .jpeg, .png)
         else:
-            results = reader.readtext(file_bytes, detail=1)
+            image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
+            img_np = np.array(image)
+            results = reader.readtext(img_np, detail=1)
             
             texts = []
             confidences = []
@@ -201,8 +207,22 @@ async def process_easyocr(file: UploadFile, gt_text: Optional[str] = None):
     # 2. 파일 읽기
     file_bytes = await file.read()    
     # 3. 확장자별 처리 및 텍스트 추출
+    parsed_text = ""
+    score = 0.0
     parsing_start_time = time.perf_counter()
-    parsed_text, default_score = process_local_ocr(file_bytes, ext)
+    try:
+        # 단 1줄로 OCR 전체 로직 수행
+        parsed_text, default_score = process_local_ocr(file_bytes, ext)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        # reader 객체는 삭제하지 않음 (GPU 상주)
+        # 추론 중 할당되었던 VRAM 임시 파편(Tensor Cache)만 비워줌
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     if gt_text and gt_text.strip():
         acc_info = calculate_cer_accuracy(gt_text=gt_text, pred_text=parsed_text)
