@@ -79,7 +79,6 @@ async def upload(file: UploadFile = File(...),ocr_type: str = Form(...)):
             "http://localhost:8002/api/ocr/upload",
             files=files,
             data={"ocr_type": ocr_type},
-            timeout=60
         )
     except requests.exceptions.RequestException as e:
         raise HTTPException(
