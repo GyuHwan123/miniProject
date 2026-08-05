@@ -63,20 +63,13 @@ def summarize(req: SummaryRequest):
         "summary": summary
     }
 
-@router.post("/api/summarize", response_model=SummarizeResponse)
-async def request_summarize(payload: SummarizeRequest):
-    # DB 조회 없이 프론트에서 넘어온 payload.text를 가지고 바로 LLM 요약 수행
-    summary_text = await ResultService.generate_llm_summary(payload.text)
-    
-    return {
-        "task_id": payload.task_id,
-        "llm_result": summary_text
-
-    }
-
 @router.post("/api/ocr/upload")
-async def upload(file: UploadFile = File(...)):
+async def upload(
+    file: UploadFile = File(...),
+    ocr_type: str = Form(...)
+    ):
 
+    print(f"[OCR 업로드] 받은 파일: {file.filename}, 선택한 OCR: {ocr_type}")
     files = {
         "file": (
             file.filename,
@@ -88,6 +81,7 @@ async def upload(file: UploadFile = File(...)):
     response = requests.post(
         "http://localhost:8002/api/ocr/upload",
         files=files,
+        data={"ocr_type": ocr_type}
     )
 
     print("status =", response.status_code)
