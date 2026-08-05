@@ -56,11 +56,10 @@ $text-dark: #1f2937;
 
   /* 클릭 후: 결과 내용 박스 */
   .content-box {
-    flex: 1;
     background-color: $bg-box;
     border-radius: 16px;
     padding: 24px;
-    min-height: 420px;
+    height: 550px;
     overflow-y: auto;
 
     .result-content {
