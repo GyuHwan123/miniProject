@@ -9,16 +9,15 @@ router = APIRouter(
 @router.post("/upload")
 async def upload(
     file: UploadFile = File(...),
-    model: str = Form("easy"),
+    ocr_type: str = Form(...),
 ):
+    print("선택 OCR =", ocr_type)
 
-    if model == "easy":
-        # 필요한 순간에만 EasyOCR import
+    if ocr_type == "easy":
         from eocr import process_easyocr
         return await process_easyocr(file)
 
-    elif model == "paddle":
-        # 필요한 순간에만 PaddleOCR import
+    elif ocr_type == "paddle":
         from pocr import process_paddleocr
         return await process_paddleocr(file)
 
