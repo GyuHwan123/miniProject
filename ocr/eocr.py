@@ -168,7 +168,7 @@ def process_local_ocr(file_bytes: bytes, extension: str) -> str:
             return "\n".join(texts), round(avg_confidence, 4)
         
     except Exception as e:
-        return f"텍스트 추출 중 오류 발생: {str(e)}"
+        return f"텍스트 추출 중 오류 발생: {str(e)}", 0.0
 
 async def process_easyocr(file: UploadFile, gt_text: Optional[str] = None):
     """파일(이미지/PDF/TXT/DOCX/HWP)을 업로드 받아 텍스트를 추출하는 엔드포인트"""
