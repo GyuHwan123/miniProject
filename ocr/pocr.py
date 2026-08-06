@@ -13,19 +13,23 @@ from typing import Optional
 import gc
 import torch
 import cv2
+from fastapi.concurrency import run_in_threadpool
+import sys
+import json
+import subprocess
 
 # 파일 용량 제한 (20MB)
 MAX_FILE_SIZE = 20 * 1024 * 1024  
 
 from quality import calculate_text_quality_score
 from accuracy import calculate_cer_accuracy
-from model_manager import get_ocr_engine
+from model_manager import ModelManager
 
-ocr_engine = get_ocr_engine("paddleocr")
+ocr_engine = ModelManager.get_paddle()
 
 def parse_image_with_paddle(file_bytes: bytes) -> str:
     """PaddleOCR을 이용한 이미지 텍스트 추출 함수"""
-        # 1. 이미지 처리
+    # 1. 이미지 처리
     image = Image.open(io.BytesIO(file_bytes)).convert("RGB")
     img_np = np.array(image)
         
@@ -213,7 +217,7 @@ async def process_paddleocr(file: UploadFile, gt_text: Optional[str] = None):
     # 3. 텍스트 추출 실행
     parsing_start_time = time.perf_counter()
     try:
-            parsed_text, default_score = process_local_ocr(file_bytes, ext)
+            parsed_text, default_score = await process_local_ocr(file_bytes, ext)
     
     except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))

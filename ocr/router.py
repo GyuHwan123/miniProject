@@ -8,7 +8,6 @@ router = APIRouter(
     tags=["OCR"]
 )
 
-
 @router.post("/upload")
 async def upload(
     file: UploadFile = File(...),

@@ -17,7 +17,7 @@ MAX_FILE_SIZE = 20 * 1024 * 1024
 
 from quality import calculate_text_quality_score
 from accuracy import calculate_cer_accuracy
-from model_manager import get_ocr_engine
+from model_manager import ModelManager
 
 def parse_txt(file_bytes: bytes) -> tuple[str, float]:
     """TXT 바이너리에서 인코딩 자동 감지 후 텍스트 및 정확도 추출"""
@@ -111,7 +111,7 @@ def parse_hwp(file_bytes: bytes) -> str:
 
 def process_local_ocr(file_bytes: bytes, extension: str) -> str:
     """다양한 문서 포맷(이미지, PDF, TXT, DOCX, HWP)에서 로컬 텍스트를 추출합니다."""
-    reader = get_ocr_engine("easyocr")
+    reader = ModelManager.get_easyocr()
     extension = extension.lower().replace(".", "")
     try:
         # 1. 텍스트 파일 (.txt)

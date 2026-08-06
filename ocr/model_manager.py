@@ -1,36 +1,41 @@
 # model_manager.py
-import gc
-import torch
-import easyocr
+import os
+os.environ["FLAGS_allocator_strategy"] = "naive_best_fit"
+os.environ["FLAGS_fraction_of_gpu_memory_to_use"] = "0.3"
+
+import numpy as np
 from paddleocr import PaddleOCR
+import easyocr
 
-_current_model_type = None
-_current_model_instance = None
+class ModelManager:
+    _paddle_engine = None
+    _easy_engine = None
 
-def get_ocr_engine(model_type: str):
-    global _current_model_type, _current_model_instance
-    
-    # 1. 이미 메모리에 올려둔 모델이 동일하면 재사용 (0초 소요, 속도 극대화)
-    if _current_model_type == model_type and _current_model_instance is not None:
-        return _current_model_instance
-        
-    # 2. 다른 모델이 메모리에 있으면 이전 모델만 정교하게 해제
-    if _current_model_instance is not None:
-        del _current_model_instance
-        _current_model_instance = None
-        _current_model_type = None
-        
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+    @classmethod
+    def get_paddle(cls):
+        if cls._paddle_engine is None:
+            cls._paddle_engine = PaddleOCR(
+                use_angle_cls=True,
+                lang="korean",
+                det_limit_side_len=1280,
+                det_db_unclip_ratio=1.8,
+                use_gpu=True,
+                show_log=False,
+                enable_mkldnn=False
+            )
+            # Warm-up
+            dummy = np.zeros((100, 100, 3), dtype=np.uint8)
+            cls._paddle_engine.ocr(dummy, cls=True)
+            print("=== PaddleOCR Loaded & Warmed up ===")
+        return cls._paddle_engine
 
-    # 3. 신규 모델 할당 및 상주
-    if model_type == "easyocr":
-        _current_model_instance = easyocr.Reader(['ko', 'en'], gpu=True)
-    elif model_type == "paddleocr":
-        _current_model_instance = PaddleOCR(use_angle_cls=True, lang='korean', use_gpu=False)
-    else:
-        raise ValueError(f"Unsupported model type: {model_type}")
-
-    _current_model_type = model_type
-    return _current_model_instance
+    @classmethod
+    def get_easyocr(cls):
+        if cls._easy_engine is None:
+            # EasyOCR 인스턴스 1회만 생성
+            cls._easy_engine = easyocr.Reader(['ko', 'en'], gpu=True)
+            # Warm-up
+            dummy = np.zeros((100, 100, 3), dtype=np.uint8)
+            cls._easy_engine.readtext(dummy)
+            print("=== EasyOCR Loaded & Warmed up ===")
+        return cls._easy_engine
