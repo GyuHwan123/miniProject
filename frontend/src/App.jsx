@@ -79,7 +79,15 @@ function App() {
     <div className="app-layout">
       {/* 💡 OCR 로딩(isLoading) 또는 LLM 로딩(isLlmLoading) 중 하나라도 true면 로딩창을 띄웁니다 */}
       {(isLoading || isLlmLoading) && (
-        <Loading message={isLoading ? loadingMessage : "LLM 변환 중..."} />
+        <Loading 
+          message={isLoading ? loadingMessage : "LLM 변환 중..."} 
+          subMessage={
+            <>
+              이미지를 분석하고 텍스트를 추출하는 데 시간이 조금 걸릴 수 있어요.<br />
+              잠시만 여유를 가지고 기다려주세요! 😊
+            </>
+          }
+        />
       )}
       <Header />
 

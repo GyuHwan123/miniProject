@@ -8,10 +8,7 @@ import './Result.scss';
 const Result = ({ ocrText: propsOcrText }) => {
   const { summaryId } = useParams();
   const location = useLocation();
-  // 1. OCR 텍스트 상태 (가상의 OCR 출력 완료물)
-  /* const [ocrText] = useState(
-    `[문서 분석 결과]\n\n1. 발행일자: 2026-08-04\n2. 담당자: 홍길동\n\n[상세 내용]\n- 본 문서는 OCR 개행 테스트용 예시 데이터입니다.\n- 줄바꿈과 목록 형태가 올바르게 표시되는지 확인합니다.\n- 공백과 엔터가 그대로 유지되는지 체크해 보세요.`
-  ); */
+  
   
  // 1. props로 온 게 없다면, 이전 페이지에서 navigate로 넘겨준 location.state.ocrText를 사용!
   const ocrText = propsOcrText || location.state?.ocrText || '';
@@ -55,9 +52,6 @@ const Result = ({ ocrText: propsOcrText }) => {
       }
 
       const data = await response.json();
-      // 백엔드가 준 응답 데이터 저장 (응답 키값이 summary인지 text인지 확인 필요)
-      /* setLlmResult(data.summary || data.result || JSON.stringify(data)); */
-      // 백엔드가 llm_result 나 summary 중 어떤 걸 주더라도 받아먹도록 설정!
       setLlmResult(data.llm_result || data.summary || data.result);
     } catch (error) {
       console.error("요약 가져오기 실패:", error);
@@ -82,7 +76,17 @@ const Result = ({ ocrText: propsOcrText }) => {
   return (
     <div className="search-result-container">
       {/* 💡 2. isLoading이 true일 때 전체 화면 로딩 오버레이 띄우기! */}
-      {isLoading && <Loading message="LLM이 문서를 요약하고 있습니다..." />}
+      {isLoading && (
+        <Loading 
+          message="LLM이 문서를 요약하고 있습니다..." 
+          subMessage={
+            <>
+              문서 길이에 따라 텍스트를 분석하는 데 시간이 조금 더 걸릴 수 있어요.<br />
+              잠시만 여유를 가지고 기다려주세요! 😊
+            </>
+          }
+        />
+      )}
       <div className="result-grid">
         {/* 왼쪽 OCR 텍스트 영역 */}
         <div className="grid-item">

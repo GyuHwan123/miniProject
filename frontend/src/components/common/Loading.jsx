@@ -1,7 +1,7 @@
 import React from 'react';
 import './Loading.scss';
 
-const Loading = ({ message = "처리 중입니다..." }) => {
+const Loading = ({ message = "처리 중입니다..." , subMessage }) => {
   return (
     <div className="loading-overlay">
       <div className="loading-content">
@@ -19,6 +19,7 @@ const Loading = ({ message = "처리 중입니다..." }) => {
 
         {/* 상황별 메시지 */}
         <p className="loading-text">{message}</p>
+        {subMessage && <p className="loading-sub-message">{subMessage}</p>}
       </div>
     </div>
   );

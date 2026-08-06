@@ -17,6 +17,13 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
+  .loading-sub-message {
+    margin-top: 10px; /* 메인 텍스트와의 간격 */
+    font-size: 0.85rem; /* 글씨를 작게 */
+    color: #a0aec0; /* 눈이 편안한 연한 회색 */
+    line-height: 1.5; /* 줄간격 확보 */
+    text-align: center;
+  }
 }
 
 .loading-spinner {

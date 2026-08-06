@@ -41,7 +41,6 @@ const LlmStructuredViewer = ({ llmResult, onSummarize, onDownload, isLoading }) 
           {isLoading ? (
             <div className="loading-state">LLM이 문서를 요약하고 있습니다...</div>
           ) : llmResult ? (
-            /* 🚨 34번째 줄 수정: {llmResult} 대신 renderSummaryText(llmResult) 사용 */
             <div className="result-content" style={{ whiteSpace: 'pre-wrap' }}>
               {renderSummaryText(llmResult)}
             </div>
